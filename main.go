@@ -2,11 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/gorilla/mux"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 )
 
@@ -14,6 +14,8 @@ type Message struct {
 	Input  string `json:"input"`
 	Output string `json:"output"`
 }
+
+var IsLetter = regexp.MustCompile(`^[a-zA-Z]+$`).MatchString
 
 func get(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -42,12 +44,34 @@ func post(w http.ResponseWriter, r *http.Request) {
 
 	// prepare response message
 	var response = Message{Input: content.Input, Output: ""}
-	temp := strings.Split(content.Input, " ")
-	for _, word := range temp {
-		for _, char := range strings.Split(word, "") {
-			response.Output += char
-			fmt.Println(response.Output)
+	originalString := strings.Split(content.Input, " ")
+	for _, word := range originalString {
+		// default to upper case if word is only 1 letter long
+		if len(word) == 1 {
+			response.Output += strings.ToUpper(word)
+			response.Output += " "
+			continue
 		}
+
+		// odd letter = lower case, even letter = upper case, skip the count on special characters
+		count := 0
+		for _, char := range strings.Split(word, "") {
+			// check if special characters
+			if IsLetter(char) {
+				count += 1
+			} else {
+				response.Output += char
+				continue
+			}
+
+			// convert cases base on count of letter
+			if count%2 == 0 {
+				response.Output += strings.ToUpper(char)
+			} else {
+				response.Output += strings.ToLower(char)
+			}
+		}
+		response.Output += " "
 	}
 
 	// write to http response
